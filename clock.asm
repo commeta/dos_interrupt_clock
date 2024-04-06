@@ -25,18 +25,13 @@
 .stack
 .data
 TimeStr         db 9 dup(0)
-TimeArray       db 8 dup(?)
-Counter         db 0
+TimeArray       db 8 dup(?) ; Массив для времени
+Counter         db 0 ; Счетчик вызовов прерывания
 .code
 .386
 org 11h ;
 start:
 jmp SetupInterruptHandler
-
-;TimeStr         db 9 dup(0)
-;TimeArray       db 8 dup(?) ; Массив для времени
-;Counter         dw 0        ; Счетчик вызовов прерывания
-
 
 ; Процедура обработки прерывания
 InterruptHandler proc
