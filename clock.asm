@@ -187,9 +187,9 @@ SetupInterruptHandler proc
     mov byte ptr es:[di], 10h; Устанавливаем Scroll lock на клавиатуре
     pop es                   ; Восстанавливаем старое значение ES
 
-    mov ax, 3103h            ; Подготовка к завершению программы с кодом возврата 03h
-    mov dx, 0020h            ; Необязательный параметр, обычно игнорируется DOS
-    int 21h                  ; Вызов DOS для завершения программы
+    mov ax, 3103h            ; Завершение программы, после которого она остается резидентной в памяти
+    mov dx, 0020h            ; 
+    int 21h                  ; Вызов DOS API для завершения программы
 SetupInterruptHandler endp
 ;end SetupInterruptHandler
 
