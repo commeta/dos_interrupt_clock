@@ -1,5 +1,5 @@
-; Fast_IO (beta) Extension for PHP 8
-; https://github.com/commeta/fast_io
+; clock&sa interrupt proc (bugfix) сборка из дампа
+; https://github.com/commeta/dos_interrupt_proс
 ; 
 ; Copyright 1999 commeta <dcs-spb@ya.ru>
 ; 
@@ -22,16 +22,22 @@
 
 .model small
 
+;.stack 100h                 ; размер стека 256 байт
 .stack
 .data
 TimeStr         db 9 dup(0)
-TimeArray       db 8 dup(?) ; Массив для времени
-Counter         db 0 ; Счетчик вызовов прерывания
+TimeArray       db 8 dup(?)
+Counter         db 0
 .code
 .386
 org 11h ;
 start:
 jmp SetupInterruptHandler
+
+;TimeStr         db 9 dup(0)
+;TimeArray       db 8 dup(?) ; Массив для времени
+;Counter         dw 0        ; Счетчик вызовов прерывания
+
 
 ; Процедура обработки прерывания
 InterruptHandler proc
@@ -147,5 +153,48 @@ NextEndInterrupt:
 InterruptHandler endp
 ;end InterruptHandler
 
+
+
+
+
+
+
+
+; Процедура установки обработчика прерывания
+SetupInterruptHandler proc
+    cli                      ; Запрет прерываний
+
+    ; Получение адреса старого обработчика прерывания
+    mov ax, 351Ch            ; DOS Fn 35H: получить вектор прерывания
+    int 21h                  ; Вызов DOS API
+    push es                  ; Сохраняем ES
+    pop ds                   ; Переносим значение ES в DS
+    push bx                  ; Сохраняем адрес старого обработчика
+    pop dx                   ; Переносим адрес в DX для установки нового обработчика
+
+    ; Установка нового обработчика прерывания
+    mov ax, 2561h            ; DOS Fn 25H: установить вектор прерывания
+    int 21h                  ; Вызов DOS API
+
+    ; Сохранение адреса старого обработчика
+    mov ax, 251Ch            ; Подготовка к сохранению старого обработчика
+    ;lds dx, [0Fh]            ; Загружаем адрес старого обработчика в DX для вызова по цепочке
+    lds dx, dword ptr InterruptHandler            ; Загружаем адрес старого обработчика в DX для вызова по цепочке
+    int 21h                  ; Вызов DOS API для установки адреса старого обработчика
+
+    sti                      ; Разрешаем прерывания
+
+    push es                  ; Сохраняем ES
+    push 0                   ; Зануляем верхнюю часть стека
+    pop es                   ; Переносим 0 в ES для доступа к BIOS данных
+    mov di, 0417h            ; DI указывает на порт клавиатуры
+    mov byte ptr es:[di], 10h; Устанавливаем специфичный режим работы клавиатуры
+    pop es                   ; Восстанавливаем старое значение ES
+
+    mov ax, 3103h            ; Подготовка к завершению программы с кодом возврата 03h
+    mov dx, 0020h            ; Необязательный параметр, обычно игнорируется DOS
+    int 21h                  ; Вызов DOS для завершения программы
+SetupInterruptHandler endp
+;end SetupInterruptHandler
 
 end start
