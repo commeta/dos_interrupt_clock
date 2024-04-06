@@ -39,7 +39,7 @@ jmp SetupInterruptHandler
 InterruptHandler proc
     cli                     ; Запрет прерываний
     inc byte ptr cs:[Counter] ; Увеличение счетчика
-    cmp byte ptr cs:[Counter], 14h
+    cmp byte ptr cs:[Counter], 14h ; Системный таймер срабатывает 18.2 в секунду, пропуск 20 циклов
     jae ResetCounter
     ;jmp short EndInterrupt
     jmp near ptr NextEndInterrupt
@@ -161,7 +161,7 @@ SetupInterruptHandler proc
     cli                      ; Запрет прерываний
 
     ; Получение адреса старого обработчика прерывания
-    mov ax, 351Ch            ; DOS Fn 35H: получить вектор прерывания
+    mov ax, 351Ch            ; DOS Fn 35H: получить вектор прерывания 
     int 21h                  ; Вызов DOS API
     push es                  ; Сохраняем ES
     pop ds                   ; Переносим значение ES в DS
@@ -184,7 +184,7 @@ SetupInterruptHandler proc
     push 0                   ; Зануляем верхнюю часть стека
     pop es                   ; Переносим 0 в ES для доступа к BIOS данных
     mov di, 0417h            ; DI указывает на порт клавиатуры
-    mov byte ptr es:[di], 10h; Устанавливаем специфичный режим работы клавиатуры
+    mov byte ptr es:[di], 10h; Устанавливаем Scroll lock на клавиатуре
     pop es                   ; Восстанавливаем старое значение ES
 
     mov ax, 3103h            ; Подготовка к завершению программы с кодом возврата 03h
