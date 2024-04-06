@@ -1,4 +1,4 @@
-; clock&sa interrupt proc (bugfix) сборка из дампа
+; ms or free dos clock&sa interrupt proc (bugfix) сборка из дампа
 ; https://github.com/commeta/dos_interrupt_proс
 ; 
 ; Copyright 1999 commeta <dcs-spb@ya.ru>
@@ -22,7 +22,7 @@
 
 .model small
 
-;.stack 100h                 ; размер стека 256 байт
+
 .stack
 .data
 TimeStr         db 9 dup(0)
@@ -33,10 +33,6 @@ Counter         db 0
 org 11h ;
 start:
 jmp SetupInterruptHandler
-
-;TimeStr         db 9 dup(0)
-;TimeArray       db 8 dup(?) ; Массив для времени
-;Counter         dw 0        ; Счетчик вызовов прерывания
 
 
 ; Процедура обработки прерывания
