@@ -1,196 +1,150 @@
-; ms or free dos clock&sa interrupt proc (bugfix) сборка из дампа
-; https://github.com/commeta/dos_interrupt_proс
-; 
-; Copyright 1999 commeta <dcs-spb@ya.ru>
-; 
-; This program is free software; you can redistribute it and/or modify
-; it under the terms of the GNU General Public License as published by
-; the Free Software Foundation; either version 2 of the License, or
-; (at your option) any later version.
-; 
-; This program is distributed in the hope that it will be useful,
-; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-; GNU General Public License for more details.
-; 
-; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-; MA 02110-1301, USA.
+objdump -D -b binary -m i8086 CLOCK.EXE > clock.asm
+
+CLOCK.EXE:     формат файла binary
+
+
+Дизассемблирование раздела .data:
+
+00000000 <.data>:
+   0:	4d                   	dec    %bp
+   1:	5a                   	pop    %dx
+   2:	ec                   	in     (%dx),%al
+   3:	00 02                	add    %al,(%bp,%si)
+   5:	00 02                	add    %al,(%bp,%si)
+   7:	00 20                	add    %ah,(%bx,%si)
+   9:	00 00                	add    %al,(%bx,%si)
+   b:	00 ff                	add    %bh,%bh
+   d:	ff 00                	incw   (%bx,%si)
+	...
+  17:	00 1e 00 00          	add    %bl,0x0
+  1b:	00 01                	add    %al,(%bx,%di)
+  1d:	00 11                	add    %dl,(%bx,%di)
+  1f:	00 00                	add    %al,(%bx,%si)
+  21:	00 15                	add    %dl,(%di)
+	...
+ 1ff:	00 e9                	add    %ch,%cl
+ 201:	bb 00 00             	mov    $0x0,%bx
+	...
+ 20c:	00 00                	add    %al,(%bx,%si)
+ 20e:	00 18                	add    %bl,(%bx,%si)
+ 210:	00 00                	add    %al,(%bx,%si)
+ 212:	00 03                	add    %al,(%bp,%di)
+ 214:	00 00                	add    %al,(%bx,%si)
+ 216:	00 22                	add    %ah,(%bp,%si)
  
-; clock&sa.asm
-
-.model small
-
-
-.stack
-.data
-TimeStr         db 9 dup(0)
-TimeArray       db 8 dup(?)
-Counter         db 0
-.code
-.386
-org 11h ;
-start:
-jmp SetupInterruptHandler
-
-
-; Процедура обработки прерывания
-InterruptHandler proc
-    cli                     ; Запрет прерываний
-    inc byte ptr cs:[Counter] ; Увеличение счетчика
-    cmp byte ptr cs:[Counter], 14h ; Системный таймер срабатывает 18.2 в секунду, пропуск 20 циклов
-    jae ResetCounter
-    ;jmp short EndInterrupt
-    jmp near ptr NextEndInterrupt
-
-ResetCounter:
-    mov byte ptr cs:[Counter], 0 ; Сброс счетчика
-
-;CheckScrollLock:
-    sti                     ; Разрешаем прерывания
-    pusha                   ; Сохраняем регистры
-    push es
-    push 0
-    pop es
-    mov di, 0417h           ; Адрес флага Scroll Lock в памяти BIOS
-    mov al, es:[di]
-    pop es
-    and al, 10h             ; Проверка флага Scroll Lock
-    or al, al
-    jne GetTime             ; Если Scroll Lock активен, получаем время
-    jmp near ptr EndInterrupt
-
-GetTime:
-    push es
-    push 0
-    pop es
-    mov di, 0449h           ; Сегмент видеопамяти
-    mov al, es:[di]
-    pop es
-    cmp al, 3
-    jbe DisplayTime         ; Если условие выполняется, выводим время на экран
-    jmp near ptr EndInterrupt
-
-DisplayTime:
-    mov ah, 02h             ; Функция BIOS для получения времени
-    int 1Ah                 ; Запрос времени из BIOS
-    xor si, si              ; Обнуление SI для использования в качестве индекса
-    mov cs:[TimeArray + si], ch ; Сохраняем часы в массиве
-    inc si
-    mov cs:[TimeArray + si], cl ; Сохраняем минуты в массиве
-    inc si
-    mov cs:[TimeArray + si], dh ; Сохраняем секунды в массиве
-
-; Конвертация времени из BCD в ASCII и вывод на экран
-;ConvertAndDisplay:
-    xor si, si              ; Сброс SI для использования в качестве индекса массива времени
-    xor ax, ax              ; Обнуление AX для использования в операциях
-    xor bx, bx              ; Обнуление BX для использования в операциях
-    mov cx, 3               ; Счетчик цикла для обработки часов, минут и секунд
-
-LoopConvert:
-    mov ah, cs:[TimeArray + bx] ; Получение компонента времени из массива
-    mov al, ah              ; Копирование в AL для обработки
-    inc bx                  ; Увеличение индекса массива времени
-    shr ah, 4               ; Извлечение старшей тетрады (десятков)
-    and al, 0Fh             ; Извлечение младшей тетрады (единиц)
-    add ax, 3030h           ; Преобразование в ASCII
-    mov cs:[TimeStr + si], ah ; Сохранение старшей тетрады в строку времени
-    inc si
-    mov cs:[TimeStr + si], al ; Сохранение младшей тетрады в строку времени
-    inc si
-
-; Вставка разделителя между компонентами времени
-;InsertSeparator:
-    mov byte ptr cs:[TimeStr + si], ':' ; Вставка символа ':'
-    inc si                  ; Увеличение индекса строки времени
-
-; Проверка окончания цикла конвертации и вывода
-;CheckLoop:
-    loop LoopConvert       ; Повторение цикла для следующего компонента времени
-
-; Вывод времени на экран в правом верхнем углу
-;OutputTimeToScreen:
-    lds si, dword ptr [TimeStr]   ; Загрузка адреса строки времени в DS:SI
-    mov cx, 8              ; Количество символов для вывода (чч:мм:сс)
-    mov dx, 0048h          ; Позиция вывода на экране (строка 0, столбец 72)
-    cld                    ; Сброс флага направления для автоинкремента DI
-
-; Установка сегмента видеопамяти для вывода текста в текстовом режиме (BIOS)
-;SetVideoMemorySegment:
-    push es
-    push 0B800h
-    pop es                 ; Установка ES на сегмент видеопамяти 0B800h
-
-; Цикл вывода символов времени на экран
-OutputLoop:
-    push cx                ; Сохранение CX перед изменениями в цикле
-    lodsb                  ; Загрузка следующего байта строки времени в AL
-    mov es:[di], al        ; Вывод символа по адресу [ES:DI]
-    inc di                 ; Переход к следующему символу на экране (пропуск атрибута)
-    inc di                 ; Пропуск байта атрибута при выводе в текстовом режиме
-    pop cx                 ; Восстановление CX после выполнения цикла
-
-; Проверка окончания цикла вывода и завершение работы процедуры обработки прерывания
-;CheckOutputLoop:
-    loop OutputLoop       ; Повторение цикла вывода для оставшихся символов строки времени
-
-    pop es                 ; Восстановление предыдущего значения ES
-
-EndInterrupt:
-    popa                   ; Восстановление регистров из стека
-NextEndInterrupt:
-    sti                    ; Разрешение прерываний
-
-    int 61h                ; Вызов старого обработчика прерываний по цепочке
-    iret                   ; Возврат из прерывания
-
-InterruptHandler endp
-;end InterruptHandler
+ 
+ 
+ // Процедура обработки прерывания
+ 218:	fa                   	cli    // Запрет прерываний
+ 219:	2e fe 06 17 00       	incb   %cs:0x17 // Увеличение счетчика, запуск процедуры не чаше 1 раза в секуду
+ 21e:	2e 80 3e 17 00 14    	cmpb   $0x14,%cs:0x17
+ 224:	73 03                	jae    0x229
+ 226:	e9 91 00             	jmp    0x2ba
+ 229:	2e c6 06 17 00 00    	movb   $0x0,%cs:0x17
+ 22f:	fb                   	sti    // Разрешаем прерывания
+ 230:	60                   	pusha  // сохраним регистры в стек, и проведем инициализацию
+ 231:	06                   	push   %es
+ 232:	6a 00                	push   $0x0
+ 234:	07                   	pop    %es
+ 235:	bf 17 04             	mov    $0x417,%di
+ 238:	26 8a 05             	mov    %es:(%di),%al
+ 23b:	07                   	pop    %es
+ 23c:	24 10                	and    $0x10,%al
+ 23e:	0a c0                	or     %al,%al
+ 240:	75 02                	jne    0x244
+ 242:	eb 75                	jmp    0x2b9
+ 244:	06                   	push   %es
+ 245:	6a 00                	push   $0x0
+ 247:	07                   	pop    %es
+ 248:	bf 49 04             	mov    $0x449,%di
+ 24b:	26 8a 05             	mov    %es:(%di),%al
+ 24e:	07                   	pop    %es
+ 24f:	3c 03                	cmp    $0x3,%al
+ 251:	76 02                	jbe    0x255
+ 253:	eb 64                	jmp    0x2b9
+ 255:	b4 02                	mov    $0x2,%ah
+ 257:	cd 1a                	int    $0x1a // Запрос времени из api bios, время упаковано в двоично десятичный формат BSD
+ 259:	33 f6                	xor    %si,%si // разложим тетрады по регистрам, и выведем на экран
+ 25b:	2e 88 ac 0c 00       	mov    %ch,%cs:0xc(%si)
+ 260:	46                   	inc    %si
+ 261:	2e 88 8c 0c 00       	mov    %cl,%cs:0xc(%si)
+ 266:	46                   	inc    %si
+ 267:	2e 88 b4 0c 00       	mov    %dh,%cs:0xc(%si)
+ 26c:	33 f6                	xor    %si,%si
+ 26e:	33 c0                	xor    %ax,%ax
+ 270:	33 db                	xor    %bx,%bx
+ 272:	b9 03 00             	mov    $0x3,%cx
+ 275:	2e 8a a7 0c 00       	mov    %cs:0xc(%bx),%ah
+ 27a:	8a c4                	mov    %ah,%al
+ 27c:	43                   	inc    %bx
+ 27d:	c0 ec 04             	shr    $0x4,%ah
+ 280:	24 0f                	and    $0xf,%al
+ 282:	05 30 30             	add    $0x3030,%ax
+ 285:	2e 88 a4 03 00       	mov    %ah,%cs:0x3(%si)
+ 28a:	46                   	inc    %si
+ 28b:	2e 88 84 03 00       	mov    %al,%cs:0x3(%si)
+ 290:	46                   	inc    %si
+ 291:	2e c6 84 03 00 3a    	movb   $0x3a,%cs:0x3(%si)
+ 297:	46                   	inc    %si
+ 298:	e2 db                	loop   0x275
+ 29a:	2e c5 36 13 00       	lds    %cs:0x13,%si
+ 29f:	b9 08 00             	mov    $0x8,%cx
+ 2a2:	ba 48 00             	mov    $0x48,%dx
+ 2a5:	fc                   	cld    // Сброс флага
+ 2a6:	06                   	push   %es  
+ 2a7:	68 00 b8             	push   $0xb800
+ 2aa:	07                   	pop    %es // сегмент видеопамяти
+ 2ab:	bf 90 00             	mov    $0x90,%di
+ 2ae:	51                   	push   %cx
+ 2af:	ac                   	lods   %ds:(%si),%al
+ 2b0:	26 88 05             	mov    %al,%es:(%di)
+ 2b3:	47                   	inc    %di
+ 2b4:	47                   	inc    %di
+ 2b5:	59                   	pop    %cx
+ 2b6:	e2 f6                	loop   0x2ae
+ 2b8:	07                   	pop    %es
+ 2b9:	61                   	popa   // Восстановим регистры из стека
+ 2ba:	fb                   	sti    // Разрешаем прерывания, 
+ 2bb:	cd 61                	int    $0x61 // вызываем прерывание по цепочке
+ 2bd:	cf                   	iret    // Возврат из прерывания
+ 
+ 
+ 
+ // Процедура установки обработчика прерывания
+ 2be:	fa                   	cli    // Запрет прерываний
+ 2bf:	b8 1c 35             	mov    $0x351c,%ax // DOS Fn 35H: дать вектор прерывания, AL = номер прерывания (1c - системный таймер) 
+ 2c2:	cd 21                	int    $0x21 // Вызов функции api dos
+ 2c4:	06                   	push   %es // ES:BX = адрес обработчика прерывания 
+ 2c5:	1f                   	pop    %ds
+ 2c6:	53                   	push   %bx
+ 2c7:	5a                   	pop    %dx
+ 2c8:	b8 61 25             	mov    $0x2561,%ax // DOS Fn 25H: установить вектор прерывания, AL = номер прерывания, DS:DX = вектор прерывания: адрес программы обработки прерывания 
+ 2cb:	cd 21                	int    $0x21
+ 2cd:	b8 1c 25             	mov    $0x251c,%ax 
+ 2d0:	2e c5 16 0f 00       	lds    %cs:0xf,%dx // Запишем адрес предыдущего вектора прерывания, по цепочке возвратов из прерывания
+ 2d5:	cd 21                	int    $0x21
+ 2d7:	fb                   	sti    // Разрешаем прерывания, дальше форк и выход
+ 2d8:	06                   	push   %es
+ 2d9:	6a 00                	push   $0x0
+ 2db:	07                   	pop    %es
+ 2dc:	bf 17 04             	mov    $0x417,%di
+ 2df:	26 c6 05 10          	movb   $0x10,%es:(%di)
+ 2e3:	07                   	pop    %es
+ 2e4:	b8 03 31             	mov    $0x3103,%ax
+ 2e7:	ba 20 00             	mov    $0x20,%dx
+ 2ea:	cd 21                	int    $0x21
 
 
-
-
-
-
-
-
-; Процедура установки обработчика прерывания
-SetupInterruptHandler proc
-    cli                      ; Запрет прерываний
-
-    ; Получение адреса старого обработчика прерывания
-    mov ax, 351Ch            ; DOS Fn 35H: получить вектор прерывания 
-    int 21h                  ; Вызов DOS API
-    push es                  ; Сохраняем ES
-    pop ds                   ; Переносим значение ES в DS
-    push bx                  ; Сохраняем адрес старого обработчика
-    pop dx                   ; Переносим адрес в DX для установки нового обработчика
-
-    ; Установка нового обработчика прерывания
-    mov ax, 2561h            ; DOS Fn 25H: установить вектор прерывания
-    int 21h                  ; Вызов DOS API
-
-    ; Сохранение адреса старого обработчика
-    mov ax, 251Ch            ; Подготовка к сохранению старого обработчика
-    ;lds dx, [0Fh]            ; Загружаем адрес старого обработчика в DX для вызова по цепочке
-    lds dx, dword ptr InterruptHandler            ; Загружаем адрес старого обработчика в DX для вызова по цепочке
-    int 21h                  ; Вызов DOS API для установки адреса старого обработчика
-
-    sti                      ; Разрешаем прерывания
-
-    push es                  ; Сохраняем ES
-    push 0                   ; Зануляем верхнюю часть стека
-    pop es                   ; Переносим 0 в ES для доступа к BIOS данных
-    mov di, 0417h            ; DI указывает на порт клавиатуры
-    mov byte ptr es:[di], 10h; Устанавливаем Scroll lock на клавиатуре
-    pop es                   ; Восстанавливаем старое значение ES
-
-    mov ax, 3103h            ; Завершение программы, после которого она остается резидентной в памяти
-    mov dx, 0020h            ; 
-    int 21h                  ; Вызов DOS API для завершения программы
-SetupInterruptHandler endp
-;end SetupInterruptHandler
-
-end start
+Так если по памяти:
+в 218 строке начинается вход в обработчик прерывания.
+запрет прерываний
+проверка счетчика чтобы раз в секунду срабатывала, иначе выход
+сохранение регистров в стеке
+потом обращение к биосу за текущим временем
+там время в двоично десятичном упакованном формате
+поэтому сдвигаем биты
+потом выводим на экран при помощи апи доса вроде
+далее восстанавливаем регистры из стека
+разрешаем прерывания
+и возврат из прерывания на строке 2bd
+во как!) 165 байт в итоге
