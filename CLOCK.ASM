@@ -35,7 +35,7 @@ old_handler     dd ?            ; Адрес старого обработчик
 ; Обработчик прерывания таймера (INT 1Ch)
 timer_handler proc
     ; Сохранение регистров
-    pushf
+    pusha
     
     ; Проверка состояния Scroll Lock
     push es
@@ -115,9 +115,9 @@ display_loop:
     pop ds
 
 exit_handler:
-    popf
-    pushf
-    call cs:[old_handler]   ; Вызов старого обработчика
+    popa
+    sti
+    int 61h         ; Вызов следующего обработчика в цепочке
     iret
 
 timer_handler endp
