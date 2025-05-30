@@ -22,6 +22,7 @@
 
 .MODEL TINY
 .CODE
+.286
 ORG 100h
 
 start:
