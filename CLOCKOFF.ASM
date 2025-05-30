@@ -1,4 +1,4 @@
-; ms or free dos clockoff interrupt proc (bugfix) сборка из дампа
+; ms or free dos clockoff interrupt proc сборка из дампа
 ; https://github.com/commeta/dos_interrupt_proс
 ; 
 ; Copyright 1999 commeta <dcs-spb@ya.ru>
