@@ -26,8 +26,8 @@ Copyright 1999 commeta <dcs-spb@ya.ru>
 
 Для компиляции используйте команды:
 ```
-tasm clock.asm
-tlink clock.obj
+tasm.exe clock.asm
+tlink.exe clock.obj
 ```
 
 Программа будет работать как TSR (Terminate and Stay Resident) - после запуска останется в памяти и будет отображать часы в верхней части экрана при включенном Scroll Lock.
@@ -46,8 +46,8 @@ tlink clock.obj
 
 **Для компиляции в TASM:**
 ```
-TASM CLOCKOFF.ASM
-TLINK /T CLOCKOFF.OBJ
+TASM.EXE CLOCKOFF.ASM
+TLINK.EXE /T CLOCKOFF.OBJ
 ```
 
 Ключ `/T` создаст COM-файл вместо EXE. Программа предназначена для работы в среде MS-DOS и манипулирует системными ресурсами низкого уровня, включая BIOS Data Area и векторы прерываний.
