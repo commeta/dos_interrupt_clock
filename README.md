@@ -9,6 +9,7 @@
 - clockoff.com - выгрузка резидентой копии из памяти
 
 ![dos_interrupt_clock](https://raw.githubusercontent.com/commeta/dos_interrupt_clock/master/tasm-DOSBox.png "dos_interrupt_clock")
+
 Copyright 1999 commeta <dcs-spb@ya.ru>
 
 
